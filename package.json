@@ -1,0 +1,26 @@
+{
+  "name": "rubick-translator",
+  "pluginName": "翻译助手",
+  "description": "轻量翻译插件：支持 LibreTranslate 与 MyMemory，自动检测中英文，历史记录与一键复制。",
+  "author": "rubick-translator",
+  "main": "index.html",
+  "logo": "https://raw.githubusercontent.com/rubick-center/rubick-ui-plugin-demo/master/logo.png",
+  "version": "0.1.0",
+  "preload": "preload.js",
+  "homePage": "",
+  "pluginType": "ui",
+  "features": [
+    {
+      "code": "translate",
+      "explain": "输入文本进行翻译，支持中英互译和多语种",
+      "cmds": [
+        "fy",
+        "翻译",
+        "translate",
+        "译"
+      ]
+    }
+  ]
+}
+
+
