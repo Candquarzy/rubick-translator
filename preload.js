@@ -5,7 +5,8 @@
     lastSourceLang: 'auto',
     lastTargetLang: 'zh',
     libretranslateBaseUrl: 'https://libretranslate.com',
-    mymemoryEmail: ''
+    mymemoryEmail: '',
+    themeMode: 'system'
   };
 
   const HISTORY_DOC_ID = 'rubick-translator/history';
