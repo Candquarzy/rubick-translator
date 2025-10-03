@@ -6,7 +6,9 @@
     lastTargetLang: 'zh',
     libretranslateBaseUrl: 'https://libretranslate.com',
     mymemoryEmail: '',
-    themeMode: 'system'
+    themeMode: 'system',
+    tencent_SID: '',
+    tencent_SKEY: ''
   };
 
   const HISTORY_DOC_ID = 'rubick-translator/history';
@@ -91,6 +93,43 @@
     return { translated, detectedSource };
   }
 
+  async function translateWithTencent({ text, source, target }) {
+    const sid = await readDoc(SETTINGS_DOC_ID)?.tencent_SID;
+    const skey = await readDoc(SETTINGS_DOC_ID)?.tencent_SKEY;
+
+    if (!sid || !skey) {
+      throw new Error("密钥配置错误!");
+    }
+
+    const clientCofig = {
+      credential: { sid, skey },
+      region: "ap-beijing",
+      profile: {
+        httpProfile: { endpoint: "tmt.tencentcloudapi.com" }
+      }
+    };
+
+    const tencentCilent = new TmtClient(clientCofig);
+
+    const controller = new AbortController();
+    const params = {
+      "SourceText": text,
+      "Source": source || "auto",
+      "Target": target || "zh",
+      "ProjectId": 0
+    };
+
+    const req = tencentCilent.TextTranslate(params);
+    const data = await withTimeout(req,15000,controller.signal);
+
+    const translated = data ?. TargetText || "";
+
+        const detectedSource = (source === 'auto' ? (data?.[2] || (isChinese(text) ? 'zh' : 'en')) : source);
+    // const detected_source_language = source === "auto" ? (data?.Source || (isChinese(text)? "zh" : "en")) : Source;
+
+    return { translated, detectedSource };
+  }
+
   async function ensureDefaults() {
     const settingsDoc = await readDoc(SETTINGS_DOC_ID);
     if (!settingsDoc) {
@@ -131,14 +170,14 @@
   }
 
   function toast(message) {
-    try { rubick.showNotification(String(message || '')); } catch (_) {}
+    try { rubick.showNotification(String(message || '')); } catch (_) { }
   }
 
   let readyResolver;
   const readyPromise = new Promise((resolve) => { readyResolver = resolve; });
 
   rubick.onPluginReady(async () => {
-    try { await ensureDefaults(); } catch (_) {}
+    try { await ensureDefaults(); } catch (_) { }
     if (readyResolver) readyResolver(true);
   });
 
@@ -149,7 +188,7 @@
   function bindSubInput(onChange, placeholder) {
     try {
       return rubick.setSubInput(({ text }) => {
-        try { onChange && onChange({ text }); } catch (_) {}
+        try { onChange && onChange({ text }); } catch (_) { }
       }, String(placeholder || ''));
     } catch (_) { return false; }
   }
@@ -160,29 +199,64 @@
     if (!cleanText) return { translated: '', detectedSource: source || 'auto' };
     const useProvider = provider || settings.lastProvider || 'libretranslate';
     let result = { translated: '', detectedSource: source || 'auto' };
-    if (useProvider === 'libretranslate') {
-      result = await translateWithLibreTranslate({
-        text: cleanText,
-        source: source || 'auto',
-        target: target || (isChinese(cleanText) ? 'en' : 'zh'),
-        baseUrl: settings.libretranslateBaseUrl
-      });
-    } else if (useProvider === 'mymemory') {
-      result = await translateWithMyMemory({
-        text: cleanText,
-        source: source || 'auto',
-        target: target || (isChinese(cleanText) ? 'en' : 'zh'),
-        email: settings.mymemoryEmail
-      });
-    } else if (useProvider === 'google') {
-      result = await translateWithGoogle({
-        text: cleanText,
-        source: source || 'auto',
-        target: target || (isChinese(cleanText) ? 'en' : 'zh')
-      });
-    } else {
-      throw new Error('Unsupported provider');
+    switch (useProvider) {
+      case "libretranslate":
+        result = await translateWithLibreTranslate({
+          text: cleanText,
+          source: source || 'auto',
+          target: target || (isChinese(cleanText) ? 'en' : 'zh'),
+          baseUrl: settings.libretranslateBaseUrl
+        });
+        break;
+      case "mymemory":
+        result = await translateWithMyMemory({
+          text: cleanText,
+          source: source || 'auto',
+          target: target || (isChinese(cleanText) ? 'en' : 'zh'),
+          email: settings.mymemoryEmail
+        });
+        break;
+      case "google":
+        result = await translateWithGoogle({
+          text: cleanText,
+          source: source || 'auto',
+          target: target || (isChinese(cleanText) ? 'en' : 'zh')
+        });
+        break;
+      case "tencent":
+        result = await translateWithTencent({
+          text : cleanText,
+          source: source || "auto",
+          target: target || (isChinese(cleanText) ? "en" : "zh")
+        })
+        break;
+      default:
+        throw new Error('Unsupported provider');
+        break;
     }
+    // if (useProvider === 'libretranslate') {
+    //   result = await translateWithLibreTranslate({
+    //     text: cleanText,
+    //     source: source || 'auto',
+    //     target: target || (isChinese(cleanText) ? 'en' : 'zh'),
+    //     baseUrl: settings.libretranslateBaseUrl
+    //   });
+    // } else if (useProvider === 'mymemory') {
+    //   result = await translateWithMyMemory({
+    //     text: cleanText,
+    //     source: source || 'auto',
+    //     target: target || (isChinese(cleanText) ? 'en' : 'zh'),
+    //     email: settings.mymemoryEmail
+    //   });
+    // } else if (useProvider === 'google') {
+    //   result = await translateWithGoogle({
+    //     text: cleanText,
+    //     source: source || 'auto',
+    //     target: target || (isChinese(cleanText) ? 'en' : 'zh')
+    //   });
+    // } else {
+    //   throw new Error('Unsupported provider');
+    // }
     await addHistory({
       text: cleanText,
       translated: result.translated,
@@ -206,5 +280,3 @@
     setSubInputValue
   };
 })();
-
-
